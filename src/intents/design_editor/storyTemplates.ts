@@ -9,8 +9,8 @@ export type StoryPlan = {
 };
 
 //dimensions for canvas
-export const STORY_W = 800;
-export const STORY_H = 600;
+export const STORY_W = 1080;
+export const STORY_H = 1920;
 
 //Defines contract for each element and attributes
 type ElementSpec =
@@ -38,11 +38,11 @@ export const TEMPLATES: StoryTemplate[] = [
     name: "Minimal — Top-left stack",
     elements: [
       { kind: "bg" },
-      { kind: "headline", top: 50, left: 90, width: 900, fontSize: 60 }, //220 88
-      { kind: "subhead", top: 233, left: 97, width: 820, fontSize: 26 }, //420 44
-      { kind: "cta_pill", top: 413, left: 260, width: 280, height: 86, radius: 43 }, //560 280,86
-      { kind: "cta_text", top: 435, left: 308, width: 280, fontSize: 36 },
-      { kind: "footer", top: 1780, left: 90, width: 900, fontSize: 34 },
+      { kind: "headline", top: 307, left: 77, width: 926.2, fontSize: 85 },
+      { kind: "subhead", top: 622.7, left: 61, width: 958, fontSize: 41 },
+      { kind: "cta_pill", top: 940.9, left: 340.5, width: 399, height: 123, radius: 43 },
+      { kind: "cta_text", top: 969, left: 352, width: 376, fontSize: 56 },
+      { kind: "footer", top: 1170, left: 370.8, width: 338.5, fontSize: 31 },
     ],
   },
   {

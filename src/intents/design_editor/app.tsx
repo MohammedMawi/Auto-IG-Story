@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useFeatureSupport } from "@canva/app-hooks";
 import { Button, Rows, Text, TextInput, Select } from "@canva/app-ui-kit";
-import { addPage } from "@canva/design";
+import { addPage, getCurrentPageContext  } from "@canva/design";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 import { rectShape } from "./canvaShapes";
@@ -15,6 +15,7 @@ import {
   STORY_H,
 } from "./storyTemplates";
 
+// Object for default color palette for each style mode 
 const DEFAULT_PALETTES: Record<StyleMode, { bg: string; text: string; accent: string }> = {
   minimal: { bg: "#0B0F1A", text: "#FFFFFF", accent: "#22C55E" },
   bold: { bg: "#0B0F1A", text: "#FFFFFF", accent: "#7C3AED" },
@@ -27,9 +28,11 @@ function fakePlanner(prompt: string, mode: StyleMode, brand?: string, cta?: stri
   const b = brand?.trim() || "yourbrand";
   const clean = prompt.trim() || "New product drop";
 
+  //check mode to get template ID
   const template_id =
     mode === "minimal" ? "t_min_01" : mode === "bold" ? "t_bold_01" : "t_prem_01";
 
+  // Return StoryPlan with inputted values/placeholders
   return {
     style_mode: mode,
     template_id,
@@ -38,7 +41,7 @@ function fakePlanner(prompt: string, mode: StyleMode, brand?: string, cta?: stri
       headline: clean.toUpperCase(),
       subhead: "Limited stock. Set a reminder and don’t miss it.",
       cta: cta?.trim() || "Shop now",
-      footer: `@${b} • This week`,
+      footer: `@${b}`,
     },
   };
 }
@@ -47,6 +50,7 @@ export const App = () => {
   const intl = useIntl();
   const isSupported = useFeatureSupport();
 
+  // States for the values in the input fields
   const [prompt, setPrompt] = useState("");
   const [styleMode, setStyleMode] = useState<StyleMode>("minimal");
   const [brand, setBrand] = useState("");
@@ -64,40 +68,56 @@ export const App = () => {
 
     const elements: any[] = [];
 
+    const ctx = await getCurrentPageContext();
+    if (!ctx.dimensions) {
+      throw new Error("This page has no fixed dimensions. Use a Photo design page.");
+    }
+    const pageW = ctx.dimensions.width;
+    const pageH = ctx.dimensions.height;
+
+    const sx = pageW / STORY_W;
+    const sy = pageH / STORY_H;
+    const sText = sx
+
+    const X = (n: number) => Math.round(n * sx);
+    const Y = (n: number) => Math.round(n * sy);
+    const T = (n: number) => Math.max(10, Math.round(n * sText));
+
+    // Function that maps each element spec to actual design elements from template
     for (const spec of template.elements) {
       if (spec.kind === "bg") {
         elements.push(
           rectShape({
             top: 0,
             left: 0,
-            width: STORY_W,
-            height: STORY_H,
+            width: pageW,
+            height: pageH,
             color: plan.palette.bg,
           })
         );
       }
 
       if (spec.kind === "accent_bar") {
-        elements.push({
-          type: "shape",
-          shape: "rectangle",
-          top: spec.top,
-          left: spec.left,
-          width: spec.width,
-          height: spec.height,
-          cornerRadius: spec.radius ?? 0,
-          fill: { color: plan.palette.accent },
-        });
+        elements.push(
+          rectShape({
+            top: Y(spec.top),
+            left: X(spec.left),
+            width: X(spec.width),
+            height: Y(spec.height),
+            color: plan.palette.accent,
+          })
+        );
       }
 
       if (spec.kind === "headline") {
         elements.push({
           type: "text",
           children: [plan.copy.headline],
-          top: spec.top,
-          left: spec.left,
-          width: spec.width,
-          fontSize: spec.fontSize,
+          top: Y(spec.top),
+          left: X(spec.left),
+          width: X(spec.width),
+          fontSize: T(spec.fontSize),
+          textAlign: "center",
           color: plan.palette.text,
         });
       }
@@ -106,10 +126,11 @@ export const App = () => {
         elements.push({
           type: "text",
           children: [plan.copy.subhead],
-          top: spec.top,
-          left: spec.left,
-          width: spec.width,
-          fontSize: spec.fontSize,
+          top: Y(spec.top),
+          left: X(spec.left),
+          width: X(spec.width),
+          fontSize: T(spec.fontSize),
+          textAlign: "center",
           color: plan.palette.text,
         });
       }
@@ -117,10 +138,10 @@ export const App = () => {
       if (spec.kind === "cta_pill") {
         elements.push(
           rectShape({
-            top: spec.top,
-            left: spec.left,
-            width: spec.width,
-            height: spec.height,
+            top: Y(spec.top),
+            left: X(spec.left),
+            width: X(spec.width),
+            height: Y(spec.height),
             color: plan.palette.accent,
           })
         );
@@ -130,10 +151,12 @@ export const App = () => {
         elements.push({
           type: "text",
           children: [plan.copy.cta],
-          top: spec.top,
-          left: spec.left,
-          width: spec.width,
-          fontSize: spec.fontSize,
+          top: Y(spec.top),
+          left: X(spec.left),
+          width: X(spec.width),
+          fontSize: Y(spec.fontSize),
+          textAlign: "center",
+          originX: "center",
           color: "#000000",
           // Center-ish: you can later use text alignment properties if your SDK version supports it
         });
@@ -143,15 +166,17 @@ export const App = () => {
         elements.push({
           type: "text",
           children: [plan.copy.footer],
-          top: spec.top,
-          left: spec.left,
-          width: spec.width,
-          fontSize: spec.fontSize,
+          top: Y(spec.top),
+          left: X(spec.left),
+          width: X(spec.width),
+          fontSize: T(spec.fontSize),
+          textAlign: "center",
           color: plan.palette.text,
         });
       }
     }
 
+    // Finally, add the new page with all the elements
     await addPage({
       title: `Story — ${styleMode}`,
       elements,
