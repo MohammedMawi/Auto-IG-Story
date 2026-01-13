@@ -66,7 +66,12 @@ async function planStoryFromApi(args: {
   }
 
   const rawJSON = JSON.parse(rawText);
-  return StoryPlanSchema.parse(rawJSON);
+
+  // TEMP: backend now returns { source, plan }
+  const parsed = rawJSON.plan;
+  console.log("planner source:", rawJSON.source);
+
+  return StoryPlanSchema.parse(parsed);
 }
 
 

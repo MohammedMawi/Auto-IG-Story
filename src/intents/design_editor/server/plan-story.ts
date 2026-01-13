@@ -1,5 +1,6 @@
 import express from "express";
 import { StoryPlanSchema, StyleModeSchema } from "../planSchema";
+import { llmPlanStory } from "./llmPlanner";
 
 const router = express.Router();
 
@@ -34,11 +35,22 @@ router.post("/plan-story", express.json(), async (req, res) => {
       },
     };
 
-    // Validate story plan draft using zod schema
-    const parsed = StoryPlanSchema.parse(draft);
-    res.json(parsed); // Send json response
+    // Try LLM plan, fallback to draft if anything goes wrong
+    let finalPlan;
+    let source: "llm" | "draft" = "draft";
+
+    try {
+      finalPlan = await llmPlanStory({ prompt: cleanPrompt, style_mode: parsedMode, brand, cta });
+      finalPlan = StoryPlanSchema.parse(finalPlan);
+      source = "llm";
+    } catch (e) {
+      finalPlan = StoryPlanSchema.parse(draft);
+      source = "draft";
+    }
+
+    return res.json({ source, plan: finalPlan });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Unknown error" });
+    return res.status(500).json({ error: err?.message ?? "Unknown error" });
   }
 });
 
