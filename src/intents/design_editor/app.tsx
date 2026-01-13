@@ -16,37 +16,6 @@ import {
 } from "./storyTemplates";
 import { StoryPlanSchema } from "./planSchema";
 
-// Object for default color palette for each style mode 
-const DEFAULT_PALETTES: Record<StyleMode, { bg: string; text: string; accent: string }> = {
-  minimal: { bg: "#0B0F1A", text: "#FFFFFF", accent: "#22C55E" },
-  bold: { bg: "#0B0F1A", text: "#FFFFFF", accent: "#7C3AED" },
-  premium: { bg: "#0A0A0A", text: "#F5F5F5", accent: "#C8A04D" },
-};
-
-// --- TEMP: local “fake LLM” so you can test rendering immediately.
-// Replace this with a backend call next.
-// function fakePlanner(prompt: string, mode: StyleMode, brand?: string, cta?: string): StoryPlan {
-//   const b = brand?.trim() || "yourbrand";
-//   const clean = prompt.trim() || "New product drop";
-
-//   //check mode to get template ID
-//   const template_id =
-//     mode === "premium" ? "t_prem_01" : mode === "bold" ? "t_bold_01" : "t_min_01";
-
-//   // Return StoryPlan with inputted values/placeholders
-//   return {
-//     style_mode: mode,
-//     template_id,
-//     palette: DEFAULT_PALETTES[mode],
-//     copy: {
-//       headline: clean.toUpperCase(),
-//       subhead: "Limited stock. Set a reminder and don’t miss it.",
-//       cta: cta?.trim() || "Shop now",
-//       footer: `@${b} • This week`,
-//     },
-//   };
-// }
-
 // Async function that takes an object with arguments and returns a StoryPlan
 async function planStoryFromApi(args: {
   prompt: string;
@@ -66,12 +35,7 @@ async function planStoryFromApi(args: {
   }
 
   const rawJSON = JSON.parse(rawText);
-
-  // TEMP: backend now returns { source, plan }
-  const parsed = rawJSON.plan;
-  console.log("planner source:", rawJSON.source);
-
-  return StoryPlanSchema.parse(parsed);
+  return StoryPlanSchema.parse(rawJSON);
 }
 
 
