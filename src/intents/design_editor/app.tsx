@@ -14,6 +14,7 @@ import {
   STORY_W,
   STORY_H,
 } from "./storyTemplates";
+import { StoryPlanSchema } from "./planSchema";
 
 // Object for default color palette for each style mode 
 const DEFAULT_PALETTES: Record<StyleMode, { bg: string; text: string; accent: string }> = {
@@ -24,27 +25,50 @@ const DEFAULT_PALETTES: Record<StyleMode, { bg: string; text: string; accent: st
 
 // --- TEMP: local “fake LLM” so you can test rendering immediately.
 // Replace this with a backend call next.
-function fakePlanner(prompt: string, mode: StyleMode, brand?: string, cta?: string): StoryPlan {
-  const b = brand?.trim() || "yourbrand";
-  const clean = prompt.trim() || "New product drop";
+// function fakePlanner(prompt: string, mode: StyleMode, brand?: string, cta?: string): StoryPlan {
+//   const b = brand?.trim() || "yourbrand";
+//   const clean = prompt.trim() || "New product drop";
 
-  //check mode to get template ID
-  const template_id =
-    mode === "minimal" ? "t_min_01" : mode === "bold" ? "t_bold_01" : "t_prem_01";
+//   //check mode to get template ID
+//   const template_id =
+//     mode === "premium" ? "t_prem_01" : mode === "bold" ? "t_bold_01" : "t_min_01";
 
-  // Return StoryPlan with inputted values/placeholders
-  return {
-    style_mode: mode,
-    template_id,
-    palette: DEFAULT_PALETTES[mode],
-    copy: {
-      headline: clean.toUpperCase(),
-      subhead: "Limited stock. Set a reminder and don’t miss it.",
-      cta: cta?.trim() || "Shop now",
-      footer: `@${b}`,
-    },
-  };
+//   // Return StoryPlan with inputted values/placeholders
+//   return {
+//     style_mode: mode,
+//     template_id,
+//     palette: DEFAULT_PALETTES[mode],
+//     copy: {
+//       headline: clean.toUpperCase(),
+//       subhead: "Limited stock. Set a reminder and don’t miss it.",
+//       cta: cta?.trim() || "Shop now",
+//       footer: `@${b} • This week`,
+//     },
+//   };
+// }
+
+// Async function that takes an object with arguments and returns a StoryPlan
+async function planStoryFromApi(args: {
+  prompt: string;
+  style_mode: StyleMode;
+  brand?: string;
+  cta?: string;
+}): Promise<StoryPlan> {
+  const resp = await fetch("http://localhost:3001/api/plan-story", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args), 
+  }); // so this function sends data to the endpoint which returns a template to display?
+
+  const rawText = await resp.text(); // read once
+  if (!resp.ok) {
+    throw new Error(`Planner failed (${resp.status}): ${rawText}`);
+  }
+
+  const rawJSON = JSON.parse(rawText);
+  return StoryPlanSchema.parse(rawJSON);
 }
+
 
 export const App = () => {
   const intl = useIntl();
@@ -55,132 +79,140 @@ export const App = () => {
   const [styleMode, setStyleMode] = useState<StyleMode>("minimal");
   const [brand, setBrand] = useState("");
   const [cta, setCta] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const canAddPage = isSupported(addPage);
 
   const onGenerate = async () => {
     if (!canAddPage) return;
 
-    // Replace fakePlanner with your backend LLM call later
-    const rawPlan = fakePlanner(prompt, styleMode, brand, cta);
-    const plan = normalizePlan(rawPlan);
-    const template = getTemplate(plan.template_id);
+    setIsGenerating(true);
 
-    const elements: any[] = [];
+    try {
+      const rawPlan = await planStoryFromApi({prompt, style_mode: styleMode, brand, cta});
+      const plan = normalizePlan(rawPlan);
+      const template = getTemplate(plan.template_id);
 
-    const ctx = await getCurrentPageContext();
-    if (!ctx.dimensions) {
-      throw new Error("This page has no fixed dimensions. Use a Photo design page.");
-    }
-    const pageW = ctx.dimensions.width;
-    const pageH = ctx.dimensions.height;
+      const elements: any[] = [];
 
-    const sx = pageW / STORY_W;
-    const sy = pageH / STORY_H;
-    const sText = sx
-
-    const X = (n: number) => Math.round(n * sx);
-    const Y = (n: number) => Math.round(n * sy);
-    const T = (n: number) => Math.max(10, Math.round(n * sText));
-
-    // Function that maps each element spec to actual design elements from template
-    for (const spec of template.elements) {
-      if (spec.kind === "bg") {
-        elements.push(
-          rectShape({
-            top: 0,
-            left: 0,
-            width: pageW,
-            height: pageH,
-            color: plan.palette.bg,
-          })
-        );
+      const ctx = await getCurrentPageContext();
+      if (!ctx.dimensions) {
+        throw new Error("This page has no fixed dimensions. Use a Photo design page.");
       }
+      const pageW = ctx.dimensions.width;
+      const pageH = ctx.dimensions.height;
 
-      if (spec.kind === "accent_bar") {
-        elements.push(
-          rectShape({
+      const sx = pageW / STORY_W;
+      const sy = pageH / STORY_H;
+      const sText = sx;
+
+      const X = (n: number) => Math.round(n * sx);
+      const Y = (n: number) => Math.round(n * sy);
+      const T = (n: number) => Math.max(10, Math.round(n * sText));
+
+      // Function that maps each element spec to actual design elements from template
+      for (const spec of template.elements) {
+        if (spec.kind === "bg") {
+          elements.push(
+            rectShape({
+              top: 0,
+              left: 0,
+              width: pageW,
+              height: pageH,
+              color: plan.palette.bg,
+            })
+          );
+        }
+
+        if (spec.kind === "accent_bar") {
+          elements.push(
+            rectShape({
+              top: Y(spec.top),
+              left: X(spec.left),
+              width: X(spec.width),
+              height: Y(spec.height),
+              color: plan.palette.accent,
+            })
+          );
+        }
+
+        if (spec.kind === "headline") {
+          elements.push({
+            type: "text",
+            children: [plan.copy.headline],
             top: Y(spec.top),
             left: X(spec.left),
             width: X(spec.width),
-            height: Y(spec.height),
-            color: plan.palette.accent,
-          })
-        );
-      }
+            fontSize: T(spec.fontSize),
+            textAlign: "center",
+            color: plan.palette.text,
+          });
+        }
 
-      if (spec.kind === "headline") {
-        elements.push({
-          type: "text",
-          children: [plan.copy.headline],
-          top: Y(spec.top),
-          left: X(spec.left),
-          width: X(spec.width),
-          fontSize: T(spec.fontSize),
-          textAlign: "center",
-          color: plan.palette.text,
-        });
-      }
-
-      if (spec.kind === "subhead") {
-        elements.push({
-          type: "text",
-          children: [plan.copy.subhead],
-          top: Y(spec.top),
-          left: X(spec.left),
-          width: X(spec.width),
-          fontSize: T(spec.fontSize),
-          textAlign: "center",
-          color: plan.palette.text,
-        });
-      }
-
-      if (spec.kind === "cta_pill") {
-        elements.push(
-          rectShape({
+        if (spec.kind === "subhead") {
+          elements.push({
+            type: "text",
+            children: [plan.copy.subhead],
             top: Y(spec.top),
             left: X(spec.left),
             width: X(spec.width),
-            height: Y(spec.height),
-            color: plan.palette.accent,
-          })
-        );
+            fontSize: T(spec.fontSize),
+            textAlign: "center",
+            color: plan.palette.text,
+          });
+        }
+
+        if (spec.kind === "cta_pill") {
+          elements.push(
+            rectShape({
+              top: Y(spec.top),
+              left: X(spec.left),
+              width: X(spec.width),
+              height: Y(spec.height),
+              color: plan.palette.accent,
+            })
+          );
+        }
+
+        if (spec.kind === "cta_text") {
+          elements.push({
+            type: "text",
+            children: [plan.copy.cta],
+            top: Y(spec.top),
+            left: X(spec.left),
+            width: X(spec.width),
+            fontSize: Y(spec.fontSize),
+            textAlign: "center",
+            originX: "center",
+            color: "#000000",
+            // Center-ish: you can later use text alignment properties if your SDK version supports it
+          });
+        }
+
+        if (spec.kind === "footer") {
+          elements.push({
+            type: "text",
+            children: [plan.copy.footer],
+            top: Y(spec.top),
+            left: X(spec.left),
+            width: X(spec.width),
+            fontSize: T(spec.fontSize),
+            textAlign: "center",
+            color: plan.palette.text,
+          });
+        }
       }
 
-      if (spec.kind === "cta_text") {
-        elements.push({
-          type: "text",
-          children: [plan.copy.cta],
-          top: Y(spec.top),
-          left: X(spec.left),
-          width: X(spec.width),
-          fontSize: Y(spec.fontSize),
-          textAlign: "center",
-          originX: "center",
-          color: "#000000",
-          // Center-ish: you can later use text alignment properties if your SDK version supports it
-        });
-      }
-
-      if (spec.kind === "footer") {
-        elements.push({
-          type: "text",
-          children: [plan.copy.footer],
-          top: Y(spec.top),
-          left: X(spec.left),
-          width: X(spec.width),
-          fontSize: T(spec.fontSize),
-          textAlign: "center",
-          color: plan.palette.text,
-        });
-      }
+      // Finally, add the new page with all the elements
+      await addPage({
+        title: `Story — ${styleMode}`,
+        elements,
+      });
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
     }
-
-    // Finally, add the new page with all the elements
-    await addPage({
-      title: `Story — ${styleMode}`,
-      elements,
-    });
   };
 
   return (
@@ -219,10 +251,10 @@ export const App = () => {
         <Button
           variant="primary"
           onClick={onGenerate}
-          disabled={!canAddPage}
+          disabled={!canAddPage || isGenerating}
           stretch
         >
-          Generate Story
+          {isGenerating ? "Generating..." : "Generate Story"}
         </Button>
 
         {!canAddPage && (
@@ -234,3 +266,5 @@ export const App = () => {
     </div>
   );
 };
+
+export const DOCS_URL = "https://www.canva.dev/docs/apps";

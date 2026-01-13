@@ -42,7 +42,7 @@ export const TEMPLATES: StoryTemplate[] = [
       { kind: "subhead", top: 622.7, left: 61, width: 958, fontSize: 41 },
       { kind: "cta_pill", top: 940.9, left: 340.5, width: 399, height: 123, radius: 43 },
       { kind: "cta_text", top: 969, left: 352, width: 376, fontSize: 56 },
-      { kind: "footer", top: 1170, left: 370.8, width: 338.5, fontSize: 31 },
+      { kind: "footer", top: 1170, left: 330.4, width: 420.3, fontSize: 31 },
     ],
   },
   {
