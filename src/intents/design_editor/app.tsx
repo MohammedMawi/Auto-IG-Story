@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useFeatureSupport } from "@canva/app-hooks";
 import { Button, Rows, Text, TextInput, Select } from "@canva/app-ui-kit";
 import { addPage, getCurrentPageContext  } from "@canva/design";
-import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 import { rectShape } from "./canvaShapes";
 
@@ -40,7 +39,6 @@ async function planStoryFromApi(args: {
 
 
 export const App = () => {
-  const intl = useIntl();
   const isSupported = useFeatureSupport();
 
   // States for the values in the input fields
@@ -114,6 +112,7 @@ export const App = () => {
             width: X(spec.width),
             fontSize: T(spec.fontSize),
             textAlign: "center",
+            fontWeight: "bold",
             color: plan.palette.text,
           });
         }
@@ -127,6 +126,7 @@ export const App = () => {
             width: X(spec.width),
             fontSize: T(spec.fontSize),
             textAlign: "center",
+            fontWeight: "bold",
             color: plan.palette.text,
           });
         }
@@ -152,7 +152,7 @@ export const App = () => {
             width: X(spec.width),
             fontSize: Y(spec.fontSize),
             textAlign: "center",
-            originX: "center",
+            fontWeight: "bold",
             color: "#000000",
             // Center-ish: you can later use text alignment properties if your SDK version supports it
           });
@@ -167,6 +167,7 @@ export const App = () => {
             width: X(spec.width),
             fontSize: T(spec.fontSize),
             textAlign: "center",
+            fontWeight: "bold",
             color: plan.palette.text,
           });
         }
